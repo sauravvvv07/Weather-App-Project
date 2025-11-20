@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Forms</title>
+    <style>
+      .button1 {
+        background-color: rgb(0, 200, 255);
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-left: 30px;
+      }
+      .hey {
+        background-color: grey;
+      }
+      .hii {
+        background-color: aliceblue;
+        margin-top: 40px;
+        /* border: solid white 20px; */
+      }
+    </style>
+  </head>
+
+  <body class="hey">
+    <fieldset class="hii">
+      <legend>Html Form Dummy</legend>
+      <form>
+        <label for="name"> Enter name</label>
+        <input type="text" id="name" placeholder="enter your name here" /><br />
+        <br />
+        <label for="email"> Enter Email</label>
+        <input type="text" id="email" placeholder="enter your email here" />
+        <br />
+        <br />
+        <label for="password1">Enter Password</label>
+        <input
+          type="password"
+          name="password1"
+          id="password1"
+          placeholder="enter your password here"
+        />
+        <br />
+        <br />
+      </form>
+      <label for="datepicker">choose date</label>
+      <input type="date" id="datepicker" />
+      <br />
+      <label for="selector1"> choose your city</label>
+      <select name="city" id="selector1">
+        <option value="dehradun">Dehradun</option>
+        <option value="pune">pune</option>
+        <option value="delhi">delhi</option>
+      </select>
+      <br />
+      <br />
+      <h2>Choose Your Gender</h2>
+      <label for="radio1"> Male</label>
+      <input type="radio" id="radio1" name="gender" />
+      <br />
+      <label for="radio2">FeMale</label>
+      <input type="radio" id="radio2" name="gender" />
+      <br />
+      <label for="radio3">Others</label>
+      <input type="radio" id="radio3" name="gender" />
+      <br />
+      <h2>Give your feedback</h2>
+
+      <textarea
+        placeholder="enter your feedback here"
+        name="haha"
+        id="no1"
+        cols="10"
+        rows="10"
+        placeho
+        lder="wirte essay"
+      ></textarea>
+      <button class="button1">submit</button>
+    </fieldset>
+  </body>
+</html>

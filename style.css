@@ -1,0 +1,25 @@
+body {
+  background-color: #f4f8fc;
+  font-family: "Poppins", sans-serif;
+}
+
+h3 {
+  color: #00ad14;
+  font-weight: 600;
+}
+
+table {
+  background-color: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+th {
+  background-color: #004aad !important;
+  color: white;
+}
+
+td {
+  vertical-align: middle;
+}
