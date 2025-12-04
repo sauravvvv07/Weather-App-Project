@@ -1,47 +1,111 @@
-//---------------------------------------
-// MAIN WEATHER FUNCTION (SAFE)
-//---------------------------------------
+function pad(n) {
+  return n < 10 ? "0" + n : String(n);
+}
+
+function formatTimeFromApi(isoString) {
+  if (!isoString) return "N/A";
+
+  const timePart = isoString.split("T")[1] || "";
+
+  const cleaned = timePart.replace(/([+-]\d{2}:?\d{2}|Z)$/, "");
+
+  const noFraction = cleaned.split(".")[0];
+  const pieces = noFraction.split(":");
+  if (pieces.length < 2) return "N/A";
+  return `${pad(Number(pieces[0]))}:${pad(Number(pieces[1]))}`;
+}
+
+function findClosestHourIndex(hourlyTimes, targetIso) {
+  if (!hourlyTimes || hourlyTimes.length === 0) return -1;
+
+  const exact = hourlyTimes.indexOf(targetIso);
+  if (exact !== -1) return exact;
+
+  try {
+    const targetMs = Date.parse(targetIso);
+    let bestIdx = 0;
+    let bestDiff = Math.abs(Date.parse(hourlyTimes[0]) - targetMs);
+    for (let i = 1; i < hourlyTimes.length; i++) {
+      const diff = Math.abs(Date.parse(hourlyTimes[i]) - targetMs);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  } catch {
+    return -1;
+  }
+}
+
+async function getCoordinates(city) {
+  const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+    city
+  )}&count=1`;
+
+  const res = await fetch(geoUrl);
+  const data = await res.json();
+
+  if (!data.results || data.results.length === 0) return null;
+
+  return {
+    lat: data.results[0].latitude,
+    lon: data.results[0].longitude,
+  };
+}
 
 async function getWeather(city) {
   document.getElementById("cityName").textContent = city;
 
   try {
-    const res = await fetch(
-      `https://yahoo-weather5.p.rapidapi.com/weather?location=${city}&format=json&u=c`,
-      {
-        method: "GET",
-        headers: {
-          "x-rapidapi-key":
-            "1e81441857msha2b16464ace6b6dp1aa199jsncc3c78553fed",
-          "x-rapidapi-host": "yahoo-weather5.p.rapidapi.com",
-        },
-      }
-    );
+    const coords = await getCoordinates(city);
+    if (!coords) {
+      alert("City not found!");
+      return;
+    }
 
+    const { lat, lon } = coords;
+
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto`;
+
+    const res = await fetch(url);
     const data = await res.json();
 
-    // SAFE EXTRACT
-    const obs = data.current_observation || {};
-    const atm = obs.atmosphere || {};
-    const wind = obs.wind || {};
-    const cond = obs.condition || {};
+    const current = data.current_weather || {};
+    const hourly = data.hourly || {};
+    const daily = data.daily || {};
 
-    document.getElementById("humidity").textContent =
-      (atm.humidity ?? "N/A") + "%";
+    let humidityValue = "N/A";
+    if (hourly.time && hourly.relative_humidity_2m) {
+      const idx = findClosestHourIndex(hourly.time, current.time);
+      if (idx !== -1 && hourly.relative_humidity_2m[idx] != null) {
+        humidityValue = hourly.relative_humidity_2m[idx] + "%";
+      }
+    }
+
+    document.getElementById("humidity").textContent = humidityValue;
+
     document.getElementById("cloud_pct").textContent =
-      (atm.visibility ?? "N/A") + " km";
-    document.getElementById("cloud_cover").textContent = cond.text ?? "N/A";
+      data.hourly && data.hourly.cloudcover
+        ? data.hourly.cloudcover[0] + "%"
+        : "N/A";
+    document.getElementById("cloud_cover").textContent =
+      current.weathercode ?? "N/A";
+
     document.getElementById("feelslike_c").textContent =
-      (wind.chill ?? "N/A") + "°C";
+      (current.temperature ?? "N/A") + "°C";
     document.getElementById("wind_kph").textContent =
-      (wind.speed ?? "N/A") + " kph";
-    document.getElementById("wind_dir").textContent = wind.direction ?? "N/A";
+      (current.windspeed ?? "N/A") + " km/h";
+    document.getElementById("wind_dir").textContent =
+      current.winddirection ?? "N/A";
     document.getElementById("windchill_c").textContent =
-      (wind.chill ?? "N/A") + "°C";
+      (current.temperature ?? "N/A") + "°C";
     document.getElementById("heatindex_c").textContent =
-      (cond.temperature ?? "N/A") + "°C";
+      (current.temperature ?? "N/A") + "°C";
     document.getElementById("gust_kph").textContent =
-      (wind.speed ?? "N/A") + " kph";
+      (current.windspeed ?? "N/A") + " km/h";
+
+    window.__lastFetchedDaily = daily;
 
     loadCityWeatherTable();
   } catch (err) {
@@ -49,21 +113,13 @@ async function getWeather(city) {
   }
 }
 
-//---------------------------------------
-// SEARCH BUTTON
-//---------------------------------------
-
 document.getElementById("submit").addEventListener("click", (e) => {
   e.preventDefault();
-  getWeather(document.getElementById("city").value.trim());
+  const cityVal = document.getElementById("city").value.trim();
+  if (cityVal) getWeather(cityVal);
 });
 
-// Default city on load
 getWeather("London");
-
-//---------------------------------------
-// TABLE FUNCTIONS
-//---------------------------------------
 
 const tableBody = document.getElementById("weatherTable");
 const cities = ["Delhi", "Mumbai", "Goa", "Dehradun", "Manali"];
@@ -74,19 +130,14 @@ function delay(ms) {
 
 async function getCityWeather(city) {
   try {
-    const response = await fetch(
-      `https://yahoo-weather5.p.rapidapi.com/weather?location=${city}&format=json&u=c`,
-      {
-        method: "GET",
-        headers: {
-          "x-rapidapi-key":
-            "1e81441857msha2b16464ace6b6dp1aa199jsncc3c78553fed",
-          "x-rapidapi-host": "yahoo-weather5.p.rapidapi.com",
-        },
-      }
-    );
+    const coords = await getCoordinates(city);
+    if (!coords) return null;
+    const { lat, lon } = coords;
 
-    return await response.json();
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto`;
+
+    const res = await fetch(url);
+    return await res.json();
   } catch {
     return null;
   }
@@ -98,28 +149,56 @@ async function loadCityWeatherTable() {
   let rows = "";
 
   for (let city of cities) {
-    await delay(300);
+    await delay(200);
 
     const data = await getCityWeather(city);
+    if (!data) {
+      rows += `
+        <tr>
+          <td>${city}</td>
+          <td>N/A</td>
+          <td>N/A</td>
+          <td>N/A</td>
+          <td>N/A</td>
+          <td>N/A</td>
+          <td>N/A</td>
+        </tr>
+      `;
+      continue;
+    }
 
-    const obs = data?.current_observation || {};
-    const atm = obs.atmosphere || {};
-    const wind = obs.wind || {};
-    const astro = obs.astronomy || {};
-    const forecast = data?.forecasts?.[0] || {};
+    const current = data.current_weather || {};
+    const daily = data.daily || {};
+    const hourly = data.hourly || {};
+
+    let humidityVal = "N/A";
+    if (hourly.time && hourly.relative_humidity_2m && current.time) {
+      const idx = findClosestHourIndex(hourly.time, current.time);
+      if (idx !== -1 && hourly.relative_humidity_2m[idx] != null) {
+        humidityVal = hourly.relative_humidity_2m[idx] + "%";
+      }
+    }
+
+    const sunriseTime = Array.isArray(daily.sunrise)
+      ? formatTimeFromApi(daily.sunrise[0])
+      : "N/A";
+    const sunsetTime = Array.isArray(daily.sunset)
+      ? formatTimeFromApi(daily.sunset[0])
+      : "N/A";
 
     rows += `
       <tr>
         <td>${city}</td>
-        <td>${wind.chill ?? "N/A"}°C</td>
-        <td>${atm.humidity ?? "N/A"}%</td>
-        <td>${forecast.high ?? "N/A"}°C</td>
-        <td>${forecast.low ?? "N/A"}°C</td>
-        <td>${astro.sunrise ?? "N/A"}</td>
-        <td>${astro.sunset ?? "N/A"}</td>
+        <td>${current.temperature ?? "N/A"}°C</td>
+        <td>${humidityVal}</td>
+        <td>${daily.temperature_2m_max?.[0] ?? "N/A"}°C</td>
+        <td>${daily.temperature_2m_min?.[0] ?? "N/A"}°C</td>
+        <td>${sunriseTime}</td>
+        <td>${sunsetTime}</td>
       </tr>
     `;
   }
 
   tableBody.innerHTML = rows;
 }
+
